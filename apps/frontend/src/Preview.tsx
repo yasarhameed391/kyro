@@ -13,10 +13,10 @@ function Preview() {
     if (!projectId) return;
 
     const isDev = import.meta.env.DEV;
-    const baseUrl = isDev ? 'http://localhost:3001' : '';
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
     const token = localStorage.getItem('token');
 
-    fetch(`${baseUrl}/project/${projectId}`, {
+    fetch(`${baseUrl}/api/project/${projectId}`, {
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` })
       }
@@ -37,12 +37,12 @@ function Preview() {
 
   const handleDownload = () => {
     const isDev = import.meta.env.DEV;
-    const baseUrl = isDev ? 'http://localhost:3001' : '';
-    window.location.href = `${baseUrl}/download/${projectId}`;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+    window.location.href = `${baseUrl}/api/download/${projectId}`;
   };
 
-  const handleRegenerate = () => {
-    navigate('/');
+  const handleGenerate = () => {
+    navigate('/generate');
   };
 
   if (loading) {
@@ -62,19 +62,20 @@ function Preview() {
   if (error || !metadata) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <div className="text-red-600 text-6xl mb-4">!</div>
-          <p className="text-gray-700 text-lg mb-4">{error || 'Project not found'}</p>
+          <p className="text-gray-700 text-lg mb-2">{error || 'Project not found'}</p>
+          <p className="text-gray-500 text-sm mb-6">The project you're looking for doesn't exist or you don't have access.</p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => navigate('/')}
-              className="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700"
+              onClick={() => navigate('/generate')}
+              className="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition"
             >
-              Back to Generator
+              Create New Project
             </button>
             <button
               onClick={() => navigate('/dashboard')}
-              className="bg-gray-300 text-gray-700 py-2 px-6 rounded-lg hover:bg-gray-400"
+              className="bg-gray-300 text-gray-700 py-2 px-6 rounded-lg hover:bg-gray-400 transition"
             >
               Go to Dashboard
             </button>
@@ -89,32 +90,52 @@ function Preview() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Kyro Preview</h1>
-              <p className="text-gray-600">Project: {metadata.projectName || metadata.projectId}</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Kyro Preview</h1>
+              <p className="text-gray-600">{metadata.projectName || metadata.projectId}</p>
+              <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
+                <span className="capitalize">{metadata.websiteType}</span>
+                <span>•</span>
+                <span>{new Date(metadata.createdAt).toLocaleDateString()}</span>
+                {metadata.status && (
+                  <>
+                    <span>•</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      metadata.status === 'ready' ? 'bg-green-100 text-green-800' :
+                      metadata.status === 'deployed' ? 'bg-purple-100 text-purple-800' :
+                      metadata.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {metadata.status === 'ready' ? 'Ready' :
+                       metadata.status === 'deployed' ? 'Deployed' :
+                       metadata.status === 'generating' ? 'Generating...' : metadata.status}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={handleDownload}
-                className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2 transition"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download ZIP
+                Download
               </button>
               <button
-                onClick={handleRegenerate}
-                className="bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400"
+                onClick={handleGenerate}
+                className="bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition"
               >
-                Regenerate
+                New Project
               </button>
               <button
                 onClick={() => navigate('/dashboard')}
-                className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
+                className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"
               >
-                Back to Dashboard
+                Dashboard
               </button>
             </div>
           </div>

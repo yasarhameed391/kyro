@@ -245,22 +245,43 @@ function Studio() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow px-6 py-4 flex justify-between items-center">
+      <div className="bg-white shadow px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{metadata.projectName || 'Project'}</h1>
-          <p className="text-sm text-gray-500">{metadata.projectId}</p>
+          <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+            <span className="capitalize">{metadata.websiteType}</span>
+            <span>•</span>
+            <span>{new Date(metadata.createdAt).toLocaleDateString()}</span>
+            {metadata.status && (
+              <>
+                <span>•</span>
+                <span className={`px-2 py-0.5 rounded text-xs ${
+                  metadata.status === 'ready' ? 'bg-green-100 text-green-800' :
+                  metadata.status === 'deployed' ? 'bg-purple-100 text-purple-800' :
+                  metadata.status === 'deploying' ? 'bg-blue-100 text-blue-800' :
+                  metadata.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {metadata.status === 'ready' ? 'Ready' :
+                   metadata.status === 'deployed' ? 'Deployed' :
+                   metadata.status === 'deploying' ? 'Deploying...' :
+                   metadata.status === 'generating' ? 'Generating...' : metadata.status}
+                </span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={handleSave}
             disabled={!selectedFile || saving}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
           <button
-            onClick={() => window.location.href = `/download/${projectId}`}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            onClick={() => window.location.href = `/api/download/${projectId}`}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
           >
             Download
           </button>
@@ -269,7 +290,7 @@ function Studio() {
               href={deployUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition"
             >
               🚀 Live
             </a>

@@ -141,6 +141,7 @@ const projectSchema = new mongoose.Schema({
   modules: [String],
   structure: [String],
   downloadPath: String,
+  status: { type: String, enum: ['generating', 'ready', 'deploying', 'deployed', 'error'], default: 'generating' },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -406,7 +407,7 @@ app.post('/generate', authMiddleware, async (req, res) => {
 
     structure.push('frontend/');
 
-    // Save project to database
+    // Save project to database with 'generating' status
     const project = new Project({
       projectId,
       userId: req.user.id,
@@ -415,8 +416,13 @@ app.post('/generate', authMiddleware, async (req, res) => {
       features,
       modules: plan.modules.map(m => m.name),
       structure,
-      downloadPath: basePath
+      downloadPath: basePath,
+      status: 'generating'
     });
+    await project.save();
+
+    // Update status to 'ready' after successful generation
+    project.status = 'ready';
     await project.save();
 
     // Store project metadata
@@ -809,12 +815,17 @@ app.post('/deploy/:projectId', authMiddleware, async (req, res) => {
       userId,
       port,
       url: `http://localhost:${port}`,
-      status: 'starting',
+      status: 'deploying',
       process: null,
       logs: []
     };
 
     deployments.set(projectId, deployment);
+
+    // Update project status in DB
+    try {
+      await Project.findOneAndUpdate({ projectId }, { status: 'deploying' });
+    } catch (e) { console.error('Status update error:', e); }
 
     console.log(`🚀 Starting deployment for ${projectId} on port ${port}`);
 
@@ -896,9 +907,13 @@ function startProjectServer(projectId, projectPath, port, deployment) {
   });
 
   // Give it a moment to start
-  setTimeout(() => {
+  setTimeout(async () => {
     if (deployment.status !== 'error') {
       deployment.status = 'deployed';
+      // Update project status in DB
+      try {
+        await Project.findOneAndUpdate({ projectId }, { status: 'deployed' });
+      } catch (e) { console.error('Status update error:', e); }
       console.log(`✅ ${projectId} deployed successfully on port ${port}`);
     }
   }, 3000);

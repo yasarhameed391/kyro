@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { WebsiteType, Feature, GenerateRequest, GenerateResponse } from '@kyro/shared';
+import Landing from './Landing.tsx';
 import Preview from './Preview.tsx';
 import Signup from './Signup.tsx';
 import Login from './Login.tsx';
@@ -48,8 +49,8 @@ function App() {
 
     try {
       const isDev = import.meta.env.DEV;
-      const baseUrl = isDev ? 'http://localhost:3001' : '';
-      const res = await fetch(`${baseUrl}/generate`, {
+      const baseUrl = isDev ? '' : 'http://localhost:3001';
+      const res = await fetch(`${baseUrl}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -109,8 +110,8 @@ function App() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Select Website Type</h2>
               <button
-                onClick={() => window.location.href = '/dashboard'}
-                className="text-sm bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400"
+                onClick={() => navigate('/dashboard')}
+                className="text-sm bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400 transition"
               >
                 ← Back to Dashboard
               </button>
@@ -157,8 +158,8 @@ function App() {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Select Features</h2>
               <button
-                onClick={() => window.location.href = '/dashboard'}
-                className="text-sm bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400"
+                onClick={() => navigate('/dashboard')}
+                className="text-sm bg-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-400 transition"
               >
                 ← Back to Dashboard
               </button>
@@ -279,7 +280,7 @@ function App() {
                 Generate Another
               </button>
               <button
-                onClick={() => window.location.href = '/dashboard'}
+                onClick={() => navigate('/dashboard')}
                 className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition"
               >
                 Go to Dashboard
@@ -299,10 +300,11 @@ function AppWrapper() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<App />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/generate" element={<App />} />
         <Route path="/preview/:projectId" element={<Preview />} />
         <Route path="/studio/:projectId" element={<Studio />} />
       </Routes>
