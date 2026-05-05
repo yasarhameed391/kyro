@@ -1,15 +1,20 @@
 # Kyro Build
 
-AI-powered website generator with visual studio editor. Generate full-stack web projects from natural language descriptions, preview them, and edit visually with Kyro Studio.
+AI-powered website generator with visual studio editor. Generate full-stack web projects from natural language descriptions, preview them, deploy to the cloud, and share with others.
 
 ## Features
 
+- **Landing Page** - Clean public homepage with features and CTAs
 - **AI Website Generation** - Describe your project and get a complete website generated
 - **Authentication** - Secure JWT-based auth with signup/login
 - **Project Management** - Dashboard to view and manage all your generated projects
+- **Project Status** - Track status (Generating, Ready, Deploying, Deployed, Error)
 - **Live Preview** - Preview generated projects before downloading
-- **Download** - Download projects as ZIP files
 - **Kyro Studio** - Visual editor to modify generated projects with file tree, code editor, and properties panel
+- **Kyro Cloud Deployment** - One-click deployment with live URLs
+- **Public Access** - Make projects public and share via links
+- **Shareable Links** - Copy public project URLs to clipboard
+- **Download** - Download projects as ZIP files
 
 ## Tech Stack
 
@@ -126,29 +131,38 @@ npm run build
 
 ### Projects
 - `POST /api/generate` - Generate a new project (auth required)
-- `GET /api/projects` - List all user projects (auth required)
+- `GET /api/projects` - List all user projects with status (auth required)
 - `GET /api/project/:projectId` - Get project details (auth required)
 - `GET /api/project/:projectId/file?path=<path>` - Read file content (auth required)
 - `POST /api/project/:projectId/update` - Update file content (auth required)
+- `POST /api/project/:projectId/toggle-visibility` - Toggle public/private (auth required)
 - `GET /api/download/:projectId` - Download project as ZIP
 - `GET /api/preview/:projectId` - Preview project
+- `GET /api/public/project/:projectId` - Public project view (no auth)
+
+### Deployment (Kyro Cloud)
+- `POST /api/deploy/:projectId` - Deploy project (auth required)
+- `GET /api/deploy/:projectId` - Get deployment status (auth required)
+- `POST /api/deploy/:projectId/stop` - Stop deployment (auth required)
 
 ### Documentation
 - Swagger docs available at `http://localhost:3001/api-docs/`
 
 ## Usage Flow
 
-1. **Sign up** - Create an account at `/signup`
-2. **Login** - Access your account at `/login`
-3. **Generate** - Use the wizard to describe your project:
+1. **Landing Page** - Visit `/` to see features and CTAs
+2. **Sign up** - Create an account at `/signup`
+3. **Login** - Access your account at `/login`
+4. **Dashboard** - View all your projects with status badges
+5. **Generate** - Use the wizard to describe your project:
    - Enter project name
-   - Select website type (portfolio, ecommerce, blog, dashboard, landing)
-   - Choose features (auth, admin, payments, blog, search, dark mode)
-   - Add custom modules
-4. **Dashboard** - View all your generated projects
-5. **Preview** - Preview any project before downloading
-6. **Studio** - Open any project in Kyro Studio to visually edit files
-7. **Download** - Download the finished project as a ZIP file
+   - Select website type (basic, ecommerce, social, blog)
+   - Choose features (auth, payments, admin)
+6. **Preview** - Preview any project with metadata display
+7. **Studio** - Open any project in Kyro Studio to visually edit files
+8. **Deploy** - One-click deployment with Kyro Cloud
+9. **Share** - Make projects public and copy shareable links
+10. **Download** - Download the finished project as a ZIP file
 
 ## Kyro Studio
 
@@ -157,7 +171,17 @@ The visual editor provides:
 - **Center Panel** - Code editor with syntax display
 - **Right Panel** - File properties
 - Save changes directly to the project
+- Share button to copy public links
+- Visibility toggle (Public/Private)
 - Download edited projects
+
+## Public Access & Sharing
+
+- Make projects **Public** to share with anyone
+- **Share button** copies public link to clipboard
+- Public URL format: `/public/project/:projectId`
+- Public viewers can see project info and live URL (if deployed)
+- No editing allowed for public viewers
 
 ## Environment Variables
 
