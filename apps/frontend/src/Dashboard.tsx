@@ -12,9 +12,16 @@ interface Project {
   previewUrl: string;
 }
 
+interface Deployment {
+  projectId: string;
+  status: string;
+  url?: string;
+}
+
 function Dashboard() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [deployments, setDeployments] = useState<{ [key: string]: Deployment }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -32,12 +39,19 @@ function Dashboard() {
       setUser(JSON.parse(userStr));
     }
 
-    axios.get('http://localhost:3001/projects', {
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    axios.get(`${baseUrl}/api/projects`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then((res: any) => {
         if (res.data.success) {
           setProjects(res.data.data);
+          // Check deployment status for each project
+          res.data.data.forEach((proj: Project) => {
+            checkDeployment(proj.projectId);
+          });
         }
       })
       .catch((err: any) => {
@@ -45,6 +59,55 @@ function Dashboard() {
       })
       .finally(() => setLoading(false));
   }, [navigate]);
+
+  const checkDeployment = async (projectId: string) => {
+    const token = localStorage.getItem('token');
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    try {
+      const res = await axios.get(`${baseUrl}/api/deploy/${projectId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setDeployments(prev => ({
+          ...prev,
+          [projectId]: { projectId, status: res.data.data.status, url: res.data.data.url }
+        }));
+      }
+    } catch {
+      // Not deployed yet
+    }
+  };
+
+  const handleDeploy = async (projectId: string) => {
+    const token = localStorage.getItem('token');
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    setDeployments(prev => ({
+      ...prev,
+      [projectId]: { projectId, status: 'deploying' }
+    }));
+
+    try {
+      const res = await axios.post(`${baseUrl}/api/deploy/${projectId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setDeployments(prev => ({
+          ...prev,
+          [projectId]: { projectId, status: res.data.data.status, url: res.data.data.url }
+        }));
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Deployment failed');
+      setDeployments(prev => ({
+        ...prev,
+        [projectId]: { projectId, status: 'error' }
+      }));
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -138,7 +201,7 @@ function Dashboard() {
                     ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <a
                       href={project.previewUrl}
                       className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
@@ -157,6 +220,27 @@ function Dashboard() {
                     >
                       Download
                     </a>
+                    {deployments[project.projectId]?.status === 'deployed' ? (
+                      <a
+                        href={deployments[project.projectId].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700"
+                      >
+                        🚀 Live
+                      </a>
+                    ) : deployments[project.projectId]?.status === 'deploying' ? (
+                      <span className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded">
+                        Deploying...
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleDeploy(project.projectId)}
+                        className="text-sm bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700"
+                      >
+                        🚀 Deploy
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

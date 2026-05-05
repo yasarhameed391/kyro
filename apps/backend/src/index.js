@@ -9,6 +9,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const archiver = require('archiver');
+const { spawn } = require('child_process');
 const kyroAI = require('../../../packages/kyro-ai/engine.js');
 
 const app = express();
@@ -753,6 +754,176 @@ app.post('/project/:projectId/update', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ==================== KYRO CLOUD DEPLOYMENT ====================
+
+const deployments = new Map();
+let nextPort = 4000; // Start deployment ports from 4000
+
+const findAvailablePort = () => {
+  return nextPort++;
+};
+
+app.post('/deploy/:projectId', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.userId;
+
+    // Check if already deployed
+    if (deployments.has(projectId)) {
+      const existing = deployments.get(projectId);
+      return res.json({
+        success: true,
+        data: {
+          status: 'deployed',
+          port: existing.port,
+          url: `http://localhost:${existing.port}`,
+          message: 'Already deployed'
+        }
+      });
+    }
+
+    const projectPath = path.join(GENERATED_PROJECTS_DIR, projectId);
+
+    if (!fs.existsSync(projectPath)) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    // Check if project has package.json (runnable project)
+    const packageJsonPath = path.join(projectPath, 'package.json');
+    if (!fs.existsSync(packageJsonPath)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Project is not runnable (no package.json found)'
+      });
+    }
+
+    const port = findAvailablePort();
+
+    // Start the project as a child process
+    const proc = spawn('npm', ['start'], {
+      cwd: projectPath,
+      env: { ...process.env, PORT: port.toString() },
+      stdio: 'pipe'
+    });
+
+    const deployment = {
+      projectId,
+      userId,
+      port,
+      url: `http://localhost:${port}`,
+      status: 'starting',
+      process: proc,
+      logs: []
+    };
+
+    proc.stdout.on('data', (data) => {
+      deployment.logs.push(data.toString());
+    });
+
+    proc.stderr.on('data', (data) => {
+      deployment.logs.push(data.toString());
+    });
+
+    proc.on('error', (err) => {
+      deployment.status = 'error';
+      deployment.error = err.message;
+      console.error(`Deployment error for ${projectId}:`, err);
+    });
+
+    proc.on('exit', (code) => {
+      if (code !== 0) {
+        deployment.status = 'stopped';
+        console.log(`Deployment ${projectId} stopped with code ${code}`);
+      }
+    });
+
+    deployments.set(projectId, deployment);
+
+    // Give it a moment to start
+    setTimeout(() => {
+      deployment.status = 'deployed';
+    }, 2000);
+
+    console.log(`🚀 Deployed ${projectId} on port ${port}`);
+
+    res.json({
+      success: true,
+      data: {
+        status: 'starting',
+        port,
+        url: `http://localhost:${port}`,
+        message: 'Deployment started. It may take a few seconds to be ready.'
+      }
+    });
+  } catch (error) {
+    console.error('Deploy error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/deploy/:projectId', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    if (!deployments.has(projectId)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Project not deployed yet'
+      });
+    }
+
+    const deployment = deployments.get(projectId);
+
+    res.json({
+      success: true,
+      data: {
+        status: deployment.status,
+        port: deployment.port,
+        url: deployment.url,
+        logs: deployment.logs.slice(-50) // Last 50 log lines
+      }
+    });
+  } catch (error) {
+    console.error('Get deployment error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/deploy/:projectId/stop', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    if (!deployments.has(projectId)) {
+      return res.status(404).json({ success: false, error: 'Project not deployed' });
+    }
+
+    const deployment = deployments.get(projectId);
+
+    if (deployment.process && !deployment.process.killed) {
+      deployment.process.kill();
+      deployment.status = 'stopped';
+      console.log(`🛑 Stopped deployment ${projectId}`);
+    }
+
+    res.json({ success: true, message: 'Deployment stopped' });
+  } catch (error) {
+    console.error('Stop deployment error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Cleanup deployments on server shutdown
+process.on('SIGTERM', () => {
+  console.log('Cleaning up deployments...');
+  for (const [projectId, deployment] of deployments) {
+    if (deployment.process && !deployment.process.killed) {
+      deployment.process.kill();
+    }
+  }
+});
+
+// ==================== END KYRO CLOUD DEPLOYMENT ====================
 
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);

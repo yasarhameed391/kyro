@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 interface FileNode {
   name: string;
@@ -18,6 +19,8 @@ function Studio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deployStatus, setDeployStatus] = useState<string>('');
+  const [deployUrl, setDeployUrl] = useState<string>('');
 
   useEffect(() => {
     if (!projectId) return;
@@ -147,6 +150,49 @@ function Studio() {
     }
   };
 
+  const checkDeployment = async () => {
+    if (!projectId) return;
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    try {
+      const res = await axios.get(`${baseUrl}/api/deploy/${projectId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.data.success) {
+        setDeployStatus(res.data.data.status);
+        setDeployUrl(res.data.data.url || '');
+      }
+    } catch {
+      // Not deployed
+    }
+  };
+
+  const handleDeploy = async () => {
+    if (!projectId) return;
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    setDeployStatus('deploying');
+
+    try {
+      const res = await axios.post(`${baseUrl}/api/deploy/${projectId}`, {}, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.data.success) {
+        setDeployStatus(res.data.data.status);
+        setDeployUrl(res.data.data.url || '');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Deployment failed');
+      setDeployStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    checkDeployment();
+  }, [projectId]);
+
   const renderFileTree = (nodes: FileNode[], depth = 0) => {
     return nodes.map(node => (
       <div key={node.path}>
@@ -218,6 +264,27 @@ function Studio() {
           >
             Download
           </button>
+          {deployStatus === 'deployed' ? (
+            <a
+              href={deployUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+            >
+              🚀 Live
+            </a>
+          ) : deployStatus === 'deploying' ? (
+            <span className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg">
+              Deploying...
+            </span>
+          ) : (
+            <button
+              onClick={handleDeploy}
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+            >
+              🚀 Deploy
+            </button>
+          )}
           <button
             onClick={() => navigate('/dashboard')}
             className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
