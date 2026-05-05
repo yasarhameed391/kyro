@@ -120,7 +120,7 @@ const getBackendIndex = (features) => {
     content += `const paymentRoutes = require('./routes/payment.routes.js');\napp.use('/api/payments', paymentRoutes);\n\n`;
   }
     
-  content += `app.listen(3001, () => {\n  console.log('Backend running on port 3001');\n});\n`;
+  content += `const PORT = process.env.PORT || 3001;\napp.listen(PORT, () => {\n  console.log('Backend running on port ' + PORT);\n});\n`;
   return content;
 };
 
