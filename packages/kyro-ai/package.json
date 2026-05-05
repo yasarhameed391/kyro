@@ -1,0 +1,6 @@
+{
+  "name": "@kyro/ai",
+  "version": "0.0.1",
+  "main": "engine.js",
+  "description": "Kyro AI Engine - Rule-based website generation engine"
+}

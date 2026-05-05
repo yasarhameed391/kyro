@@ -1,0 +1,268 @@
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { WebsiteType, Feature, GenerateRequest, GenerateResponse } from '@kyro/shared';
+import Preview from './Preview';
+import Signup from './Signup';
+import Login from './Login';
+import Dashboard from './Dashboard';
+
+type Step = 1 | 2 | 3;
+
+function App() {
+  const [step, setStep] = useState<Step>(1);
+  const [websiteType, setWebsiteType] = useState<WebsiteType>('basic');
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState<GenerateResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const websiteTypes: WebsiteType[] = ['basic', 'ecommerce', 'social', 'blog'];
+  const availableFeatures: Feature[] = ['auth', 'payments', 'admin'];
+
+  const toggleFeature = (feature: Feature) => {
+    setFeatures(prev =>
+      prev.includes(feature)
+        ? prev.filter(f => f !== feature)
+        : [...prev, feature]
+    );
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+    setResponse(null);
+
+    const payload: GenerateRequest = {
+      websiteType,
+      features
+    };
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data: GenerateResponse = await res.json();
+      setResponse(data);
+      setStep(3);
+    } catch (err) {
+      setError('Failed to connect to backend. Make sure backend is running on port 3001.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reset = () => {
+    setStep(1);
+    setWebsiteType('basic');
+    setFeatures([]);
+    setResponse(null);
+    setError(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Kyro</h1>
+          <p className="text-lg text-gray-600">AI Website Generator MVP</p>
+        </div>
+
+        {/* Progress Steps */}
+        <div className="flex items-center justify-center mb-8">
+          {[1, 2, 3].map((s) => (
+            <div key={s} className="flex items-center">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  step >= s ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+                }`}
+              >
+                {s}
+              </div>
+              {s < 3 && (
+                <div className={`w-24 h-1 ${step > s ? 'bg-blue-600' : 'bg-gray-300'}`} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Step 1: Website Type */}
+        {step === 1 && (
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Select Website Type</h2>
+            <div className="space-y-3">
+              {websiteTypes.map(type => (
+                <button
+                  key={type}
+                  onClick={() => setWebsiteType(type)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border-2 transition ${
+                    websiteType === type
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <span className="font-medium capitalize">{type}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setStep(2)}
+              className="mt-6 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: Features */}
+        {step === 2 && (
+          <div className="bg-white shadow rounded-lg p-6 relative">
+            <h2 className="text-xl font-semibold mb-4">Select Features</h2>
+            <div className="space-y-3">
+              {availableFeatures.map(feature => (
+                <button
+                  key={feature}
+                  onClick={() => toggleFeature(feature)}
+                  disabled={loading}
+                  className={`w-full text-left px-4 py-3 rounded-lg border-2 transition ${
+                    features.includes(feature)
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  } disabled:opacity-50`}
+                >
+                  <span className="font-medium capitalize">{feature}</span>
+                  {features.includes(feature) && (
+                    <span className="float-right text-blue-600">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setStep(1)}
+                disabled={loading}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition disabled:opacity-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  'Generate'
+                )}
+              </button>
+            </div>
+
+            {/* Loading Overlay */}
+            {loading && (
+              <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+                <div className="text-center">
+                  <svg className="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <p className="text-gray-600">Generating your project...</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 3: Response */}
+        {step === 3 && (
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Generated Project</h2>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
+            response && response.success && response.data && (
+              <div>
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded">
+                  <p className="text-green-800 font-medium">✓ {response.data.message || 'Project generated successfully!'}</p>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-gray-600 text-sm mb-1"><strong>Project ID:</strong> {response.data.projectId}</p>
+                  {response.data.downloadPath && (
+                    <p className="text-gray-600 text-sm mb-1"><strong>Location:</strong> <span className="font-mono text-xs">{response.data.downloadPath}</span></p>
+                  )}
+                  {response.data.modules && (
+                    <p className="text-gray-600 text-sm mb-1"><strong>Modules:</strong> {response.data.modules.join(', ')}</p>
+                  )}
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded border">
+                  <p className="font-medium mb-2 text-gray-700">Generated Files:</p>
+                  <ul className="space-y-1">
+                    {response.data.structure.map((item: string, idx: number) => (
+                      <li key={idx} className="font-mono text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-blue-600">📄</span> {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {response.data.previewUrl && (
+                  <a
+                    href={response.data.previewUrl}
+                    className="mt-4 inline-block bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"
+                  >
+                    View Live Preview
+                  </a>
+                )}
+              </div>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={reset}
+                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+              >
+                Generate Another
+              </button>
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+function AppWrapper() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/preview/:projectId" element={<Preview />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export { AppWrapper as App };
+
