@@ -23,9 +23,9 @@ function Studio() {
     if (!projectId) return;
 
     const isDev = import.meta.env.DEV;
-    const baseUrl = isDev ? 'http://localhost:3001' : '';
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
 
-    fetch(`${baseUrl}/project/${projectId}`, {
+    fetch(`${baseUrl}/api/project/${projectId}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -89,11 +89,28 @@ function Studio() {
     if (!projectId) return;
 
     try {
-      // For now, show a placeholder since we need a file content endpoint
       setSelectedFile(filePath);
-      setFileContent(`// Content of ${filePath}\n// This is a read-only preview.\n// Full file editing will be available in the next update.`);
+
+      // Use /api proxy in dev mode
+      const isDev = import.meta.env.DEV;
+      const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+      const res = await fetch(`${baseUrl}/api/project/${projectId}/file?path=${encodeURIComponent(filePath)}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setFileContent(data.content);
+      } else {
+        setError(data.error || 'Failed to load file');
+        setFileContent('');
+      }
     } catch (err) {
       setError('Failed to load file content');
+      setFileContent('');
     }
   };
 
@@ -103,9 +120,9 @@ function Studio() {
     setSaving(true);
     try {
       const isDev = import.meta.env.DEV;
-      const baseUrl = isDev ? 'http://localhost:3001' : '';
+      const baseUrl = isDev ? '' : 'http://localhost:3001';
 
-      const res = await fetch(`${baseUrl}/project/${projectId}/update`, {
+      const res = await fetch(`${baseUrl}/api/project/${projectId}/update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

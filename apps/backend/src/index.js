@@ -684,6 +684,40 @@ app.get('/preview/:projectId', (req, res) => {
   }
 });
 
+app.get('/project/:projectId/file', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { path: filePath } = req.query;
+
+    if (!filePath) {
+      return res.status(400).json({ success: false, error: 'Missing filePath parameter' });
+    }
+
+    // Security: prevent path traversal
+    if (filePath.includes('..')) {
+      return res.status(400).json({ success: false, error: 'Invalid file path' });
+    }
+
+    const projectPath = path.join(GENERATED_PROJECTS_DIR, projectId);
+    const fullPath = path.join(projectPath, filePath);
+
+    // Ensure the file is inside the project directory
+    if (!fullPath.startsWith(projectPath)) {
+      return res.status(400).json({ success: false, error: 'Invalid file path' });
+    }
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ success: false, error: 'File not found' });
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    res.json({ success: true, content });
+  } catch (error) {
+    console.error('File read error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/project/:projectId/update', authMiddleware, async (req, res) => {
   try {
     const { projectId } = req.params;
