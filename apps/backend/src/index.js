@@ -800,12 +800,9 @@ app.post('/deploy/:projectId', authMiddleware, async (req, res) => {
 
     const port = findAvailablePort();
 
-    // Start the project as a child process
-    const proc = spawn('npm', ['start'], {
-      cwd: projectPath,
-      env: { ...process.env, PORT: port.toString() },
-      stdio: 'pipe'
-    });
+    // Check if node_modules exists, if not install dependencies
+    const nodeModulesPath = path.join(projectPath, 'node_modules');
+    const needsInstall = !fs.existsSync(nodeModulesPath);
 
     const deployment = {
       projectId,
@@ -813,39 +810,45 @@ app.post('/deploy/:projectId', authMiddleware, async (req, res) => {
       port,
       url: `http://localhost:${port}`,
       status: 'starting',
-      process: proc,
+      process: null,
       logs: []
     };
 
-    proc.stdout.on('data', (data) => {
-      deployment.logs.push(data.toString());
-    });
-
-    proc.stderr.on('data', (data) => {
-      deployment.logs.push(data.toString());
-    });
-
-    proc.on('error', (err) => {
-      deployment.status = 'error';
-      deployment.error = err.message;
-      console.error(`Deployment error for ${projectId}:`, err);
-    });
-
-    proc.on('exit', (code) => {
-      if (code !== 0) {
-        deployment.status = 'stopped';
-        console.log(`Deployment ${projectId} stopped with code ${code}`);
-      }
-    });
-
     deployments.set(projectId, deployment);
 
-    // Give it a moment to start
-    setTimeout(() => {
-      deployment.status = 'deployed';
-    }, 2000);
+    console.log(`🚀 Starting deployment for ${projectId} on port ${port}`);
 
-    console.log(`🚀 Deployed ${projectId} on port ${port}`);
+    if (needsInstall) {
+      deployment.logs.push('Installing dependencies...\n');
+      console.log(`Installing dependencies for ${projectId}...`);
+
+      const installProc = spawn('npm', ['install'], {
+        cwd: projectPath,
+        stdio: 'pipe'
+      });
+
+      installProc.stdout.on('data', (data) => {
+        deployment.logs.push(data.toString());
+      });
+
+      installProc.stderr.on('data', (data) => {
+        deployment.logs.push(data.toString());
+      });
+
+      installProc.on('close', (code) => {
+        if (code === 0) {
+          deployment.logs.push('Dependencies installed successfully\n');
+          console.log(`Dependencies installed for ${projectId}`);
+          startProjectServer(projectId, projectPath, port, deployment);
+        } else {
+          deployment.status = 'error';
+          deployment.error = 'Failed to install dependencies';
+          console.error(`npm install failed for ${projectId}`);
+        }
+      });
+    } else {
+      startProjectServer(projectId, projectPath, port, deployment);
+    }
 
     res.json({
       success: true,
@@ -861,6 +864,45 @@ app.post('/deploy/:projectId', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+function startProjectServer(projectId, projectPath, port, deployment) {
+  const proc = spawn('npm', ['start'], {
+    cwd: projectPath,
+    env: { ...process.env, PORT: port.toString() },
+    stdio: 'pipe'
+  });
+
+  deployment.process = proc;
+
+  proc.stdout.on('data', (data) => {
+    deployment.logs.push(data.toString());
+  });
+
+  proc.stderr.on('data', (data) => {
+    deployment.logs.push(data.toString());
+  });
+
+  proc.on('error', (err) => {
+    deployment.status = 'error';
+    deployment.error = err.message;
+    console.error(`Deployment error for ${projectId}:`, err);
+  });
+
+  proc.on('exit', (code) => {
+    if (code !== 0 && deployment.status !== 'stopped') {
+      deployment.status = 'error';
+      console.log(`Deployment ${projectId} exited with code ${code}`);
+    }
+  });
+
+  // Give it a moment to start
+  setTimeout(() => {
+    if (deployment.status !== 'error') {
+      deployment.status = 'deployed';
+      console.log(`✅ ${projectId} deployed successfully on port ${port}`);
+    }
+  }, 3000);
+}
 
 app.get('/deploy/:projectId', authMiddleware, async (req, res) => {
   try {
