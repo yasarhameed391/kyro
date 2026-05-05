@@ -21,6 +21,7 @@ function Studio() {
   const [saving, setSaving] = useState(false);
   const [deployStatus, setDeployStatus] = useState<string>('');
   const [deployUrl, setDeployUrl] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -189,6 +190,37 @@ function Studio() {
     }
   };
 
+  const toggleVisibility = async () => {
+    if (!projectId) return;
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    try {
+      const res = await axios.post(`${baseUrl}/api/project/${projectId}/toggle-visibility`, {}, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.data.success) {
+        // Refresh metadata
+        const metaRes = await fetch(`${baseUrl}/api/project/${projectId}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const metaData = await metaRes.json();
+        if (metaData.success) {
+          setMetadata(metaData.data);
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to toggle visibility');
+    }
+  };
+
+  const copyLink = () => {
+    const url = `${window.location.origin}/public/project/${projectId}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   useEffect(() => {
     checkDeployment();
   }, [projectId]);
@@ -285,6 +317,24 @@ function Studio() {
           >
             Download
           </button>
+          <button
+            onClick={copyLink}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2 transition"
+            title="Copy public link"
+          >
+            {copied ? '✓ Copied!' : '📋 Share'}
+          </button>
+          <button
+            onClick={toggleVisibility}
+            className={`px-4 py-2 rounded-lg transition ${
+              metadata?.isPublic
+                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            title={metadata?.isPublic ? 'Make private' : 'Make public'}
+          >
+            {metadata?.isPublic ? '🌐 Public' : '🔒 Private'}
+          </button>
           {deployStatus === 'deployed' ? (
             <a
               href={deployUrl}
@@ -301,16 +351,16 @@ function Studio() {
           ) : (
             <button
               onClick={handleDeploy}
-              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition"
             >
               🚀 Deploy
             </button>
           )}
           <button
             onClick={() => navigate('/dashboard')}
-            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+            className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition"
           >
-            Back to Dashboard
+            Dashboard
           </button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import Signup from './Signup.tsx';
 import Login from './Login.tsx';
 import Dashboard from './Dashboard.tsx';
 import Studio from './Studio.tsx';
+import PublicView from './PublicView.tsx';
 
 function App() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -307,6 +308,7 @@ function AppWrapper() {
         <Route path="/generate" element={<App />} />
         <Route path="/preview/:projectId" element={<Preview />} />
         <Route path="/studio/:projectId" element={<Studio />} />
+        <Route path="/public/project/:projectId" element={<PublicView />} />
       </Routes>
     </BrowserRouter>
   );

@@ -9,6 +9,7 @@ interface Project {
   features: string[];
   modules: string[];
   status: string;
+  isPublic: boolean;
   createdAt: string;
   previewUrl: string;
 }
@@ -19,6 +20,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -56,6 +58,30 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleVisibility = async (projectId: string) => {
+    const token = localStorage.getItem('token');
+    const isDev = import.meta.env.DEV;
+    const baseUrl = isDev ? '' : 'http://localhost:3001';
+
+    try {
+      const res = await axios.post(`${baseUrl}/api/project/${projectId}/toggle-visibility`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        fetchProjects(); // Refresh to get updated visibility
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to toggle visibility');
+    }
+  };
+
+  const copyLink = (projectId: string) => {
+    const url = `${window.location.origin}/public/project/${projectId}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(projectId);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleDeploy = async (projectId: string) => {
@@ -214,6 +240,24 @@ function Dashboard() {
                     >
                       Download
                     </a>
+                    <button
+                      onClick={() => copyLink(project.projectId)}
+                      className="text-sm bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700 transition"
+                      title="Copy public link"
+                    >
+                      {copiedId === project.projectId ? '✓ Copied!' : '📋 Share'}
+                    </button>
+                    <button
+                      onClick={() => toggleVisibility(project.projectId)}
+                      className={`text-sm px-3 py-1 rounded transition ${
+                        project.isPublic
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title={project.isPublic ? 'Make private' : 'Make public'}
+                    >
+                      {project.isPublic ? '🌐 Public' : '🔒 Private'}
+                    </button>
                     {project.status === 'deployed' ? (
                       <a
                         href={`/api/deploy/${project.projectId}`}

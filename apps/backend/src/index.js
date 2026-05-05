@@ -142,6 +142,7 @@ const projectSchema = new mongoose.Schema({
   structure: [String],
   downloadPath: String,
   status: { type: String, enum: ['generating', 'ready', 'deploying', 'deployed', 'error'], default: 'generating' },
+  isPublic: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -981,6 +982,72 @@ process.on('SIGTERM', () => {
 });
 
 // ==================== END KYRO CLOUD DEPLOYMENT ====================
+
+// ==================== PUBLIC ACCESS ====================
+
+app.post('/project/:projectId/toggle-visibility', authMiddleware, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.user.id;
+
+    const project = await Project.findOne({ projectId, userId });
+    if (!project) {
+      return res.status(404).json({ success: false, error: 'Project not found' });
+    }
+
+    project.isPublic = !project.isPublic;
+    await project.save();
+
+    console.log(`🔓 Project ${projectId} visibility: ${project.isPublic ? 'PUBLIC' : 'PRIVATE'}`);
+
+    res.json({
+      success: true,
+      data: {
+        isPublic: project.isPublic,
+        message: `Project is now ${project.isPublic ? 'public' : 'private'}`
+      }
+    });
+  } catch (error) {
+    console.error('Toggle visibility error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/public/project/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    const project = await Project.findOne({ projectId, isPublic: true });
+    if (!project) {
+      return res.status(404).json({ success: false, error: 'Project not found or not public' });
+    }
+
+    // Check if deployed to include live URL
+    const deployment = deployments.get(projectId);
+    const liveUrl = deployment?.status === 'deployed' ? deployment.url : null;
+
+    res.json({
+      success: true,
+      data: {
+        projectId: project.projectId,
+        projectName: project.projectName,
+        websiteType: project.websiteType,
+        features: project.features,
+        modules: project.modules,
+        structure: project.structure,
+        status: project.status,
+        isPublic: project.isPublic,
+        liveUrl,
+        createdAt: project.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Public project error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== END PUBLIC ACCESS ====================
 
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
